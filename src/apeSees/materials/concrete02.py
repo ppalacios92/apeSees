@@ -30,7 +30,7 @@ class Concrete02(Material):
         Ratio between unloading slope at epsU and initial slope (positive).
     ft : float
         Tensile strength (must be a positive value).
-    ets : float
+    Ets : float
         Tension softening stiffness (must be a positive value).
     """
     def __init__(self,
@@ -41,7 +41,7 @@ class Concrete02(Material):
                  epsu: float,
                  lambda_val: float,
                  ft: float,
-                 ets: float):
+                 Ets: float):
         
         # --- Validate Compressive Parameters (Negative) ---
         if fpc > 0:
@@ -64,12 +64,12 @@ class Concrete02(Material):
         if ft < 0:
             print(f"Warning: ft ({ft}) should be positive. Converting.")
             ft = abs(ft)
-        if ets < 0:
-            print(f"Warning: ets ({ets}) should be positive. Converting.")
-            ets = abs(ets)
+        if Ets < 0:
+            print(f"Warning: ets ({Ets}) should be positive. Converting.")
+            Ets = abs(ets)
 
         # Collect all parameters in the exact positional order
-        mat_params = [fpc, epsc0, fpcu, epsu, lambda_val, ft, ets]
+        mat_params = [fpc, epsc0, fpcu, epsu, lambda_val, ft, Ets]
 
         # Call the parent class __init__
         # It expects (mat_type, tag, *params)

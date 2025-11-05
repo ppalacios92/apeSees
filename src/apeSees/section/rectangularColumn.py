@@ -1,9 +1,9 @@
-"""Rectangular column section with fiber discretization."""
 
 from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 from math import ceil
 
+from attr import dataclass
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle, Circle
@@ -12,25 +12,86 @@ import openseespy.opensees as ops
 from .base import Section
 from .functions import nAs, safe_ndiv, torsional_constant_rectangle
 from .moment_curvature import MomentCurvature
+from .neural_moment_curvature_trainer import NeuralMomentCurvatureTrainer
 
 if TYPE_CHECKING:
     from ..materials import Material
+    from .moment_curvature import MomentCurvature
+    from .neural_moment_curvature_trainer import NeuralMomentCurvatureTrainer
+    # This circular import is fine due to TYPE_CHECKING
+    from .rectangular_column_section import RectangularColumnSection 
 
+@dataclass
+class SectionProperties:
+    """Section geometric and reinforcement properties."""
+    
+    A_g: float        # Gross area [mm²]
+    A_c: float        # Concrete area [mm²]
+    A_s: float        # Total steel area [mm²]
+    I_y: float        # Moment of inertia about y-axis [mm^4]
+    I_z: float        # Moment of inertia about z-axis [mm^4]
+    S_y: float        # Section modulus about y-axis [mm^3]
+    S_z: float        # Section modulus about z-axis [mm^3]
+    r_y: float        # Radius of gyration about y-axis [mm]
+    r_z: float        # Radius of gyration about z-axis [mm]
+    rho_l: float      # Longitudinal reinforcement ratio
+
+    @classmethod
+    def from_section(cls, section: RectangularColumnSection) -> SectionProperties:
+        """
+        Calculate and instantiate properties from a RectangularColumnSection.
+        
+        Note: I_y and I_z are based on the gross concrete section.
+        """
+        B, H, cover = section.B, section.H, section.cover
+        
+        # --- Gross Section Properties ---
+        A_g = B * H
+        # I_y: Bending about y-axis (resisted by H)
+        I_y = (B * H**3) / 12.0
+        # I_z: Bending about z-axis (resisted by B)
+        I_z = (H * B**3) / 12.0
+        
+        # --- Reinforcement Properties ---
+        A_s = np.sum(section.rebar_array[:, 2])
+        
+        # --- Composite Properties ---
+        A_c = A_g - (B-2*cover)*(H-2*cover)
+        rho_l = A_s / A_g if A_g > 0 else 0.0
+        
+        # --- Derived Geometric Properties (Gross) ---
+        S_y = I_y / (H / 2.0) if H > 0 else 0.0
+        S_z = I_z / (B / 2.0) if B > 0 else 0.0
+        r_y = (I_y / A_g)**0.5 if A_g > 0 else 0.0
+        r_z = (I_z / A_g)**0.5 if A_g > 0 else 0.0
+        
+        return cls(
+            A_g=A_g,
+            A_c=A_c,
+            A_s=A_s,
+            I_y=I_y,
+            I_z=I_z,
+            S_y=S_y,
+            S_z=S_z,
+            r_y=r_y,
+            r_z=r_z,
+            rho_l=rho_l
+        )
 
 class RectangularColumnSection(Section):
     """
     Rectangular reinforced concrete column section with fiber discretization.
     
-    Unit system: length [mm], force [N], stress [MPa].
+    Use a consistent set of units.
     
     Parameters
     ----------
     B : float
-        Section width [mm] (dimension along y-axis).
+        Section width (dimension along y-axis).
     H : float
-        Section height [mm] (dimension along z-axis).
+        Section height (dimension along z-axis).
     cover : float
-        Concrete cover thickness [mm].
+        Concrete cover thickness.
     material_core : Material
         Confined concrete material (core).
     material_cover : Material
@@ -44,13 +105,13 @@ class RectangularColumnSection(Section):
     number_of_rebars_along_H : int
         Number of rebars along height (z-direction).
     phi : float
-        Rebar diameter [mm].
+        Rebar diameter.
     G : float
-        Shear modulus [MPa].
+        Shear modulus.
     rebar_distance_from_edge : float, optional
-        Distance from edge to rebar center [mm]. If None, calculated as cover + stirrup + phi/2.
+        Distance from edge to rebar center. If None, calculated as cover + stirrup + phi/2.
     mesh_size : float, optional
-        Target fiber mesh size [mm]. Default is 50.0.
+        Target fiber mesh size. Default is 50.0.
     
     Examples
     --------
@@ -102,9 +163,11 @@ class RectangularColumnSection(Section):
         
         # Calculate section parameters
         self.rebar_array: np.ndarray = self._rebar_layout()
+        self.properties: SectionProperties = SectionProperties.from_section(self)
         
         # Composite class
         self.moment_curvature: MomentCurvature = MomentCurvature(section=self)
+        self.neural_moment_curvature_trainer: NeuralMomentCurvatureTrainer = NeuralMomentCurvatureTrainer(section=self)
     
     def _rebar_layout(self) -> np.ndarray:
         """
@@ -246,7 +309,7 @@ class RectangularColumnSection(Section):
         """
         Plot section geometry with core, cover, and rebars.
         
-        Axes convention: x-axis → y [mm], y-axis → z [mm]
+        Axes convention: x-axis → y, y-axis → z 
         
         Parameters
         ----------
@@ -324,8 +387,8 @@ class RectangularColumnSection(Section):
 
         # Axes settings
         ax.set_aspect('equal')
-        ax.set_xlabel("y [mm]")
-        ax.set_ylabel("z [mm]")
+        ax.set_xlabel("y")
+        ax.set_ylabel("z")
         ax.set_title(f"RC Section (tag={self.section_tag})")
         ax.grid(True, alpha=0.3)
         
@@ -449,8 +512,8 @@ class RectangularColumnSection(Section):
 
         # Axes settings
         ax.set_aspect("equal")
-        ax.set_xlabel("y [mm]")
-        ax.set_ylabel("z [mm]")
+        ax.set_xlabel("y")
+        ax.set_ylabel("z")
         ax.set_title(f"Fiber Mesh Layout (Section {self.section_tag})")
         
         pad = max(self.phi, 0.02 * max(self.B, self.H))

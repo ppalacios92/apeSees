@@ -4,6 +4,7 @@ from .base import Section
 from .rectangularColumn import RectangularColumnSection
 from .functions import nAs, bar_area, safe_ndiv, torsional_constant_rectangle
 from .moment_curvature import MomentCurvature
+from .neural_moment_curvature_trainer import NeuralMomentCurvatureTrainer
 from .results import MomentCurvatureResults
 
 __all__ = [
@@ -13,6 +14,7 @@ __all__ = [
     "RectangularColumnSection",
     # Analysis
     "MomentCurvature",
+    "NeuralMomentCurvatureTrainer",
     "MomentCurvatureResults",
     # Utility functions
     "nAs",

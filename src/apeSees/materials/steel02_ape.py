@@ -4,7 +4,7 @@ from typing import Any, Optional
 # Assuming apeSees.materials.base is available in the Python path
 # (Content fetched from nmorabowen/apesees/apeSees-66420558d9652ba95ba906ae9714dfd264cf6608/src/apeSees/materials/base.py)
 
-class Steel02(Material):
+class Steel02_ape(Material):
     """
     Represents the OpenSees Steel02 uniaxial material (Giuffré-Menegotto-Pinto).
 
@@ -22,8 +22,10 @@ class Steel02(Material):
         Yield strength.
     E0 : float
         Young's modulus.
-    b : float
-        Strain hardening ratio (E_sh / E).
+    fu : float
+        Ultimate strength.
+    epsilon_u : float
+        Strain at ultimate strength.
     r0 : float, optional
         Parameter controlling transition from elastic to plastic.
         (Default: 20.0, as used in examples)
@@ -46,7 +48,8 @@ class Steel02(Material):
                  tag: int,
                  fy: float,
                  E0: float,
-                 b: float,
+                 fu:float,
+                 epsilon_u:float,
                  r0: float = 20.0,
                  cr1: float = 0.925,
                  cr2: float = 0.15,
@@ -54,6 +57,9 @@ class Steel02(Material):
                  a2: Optional[float] = None,
                  a3: Optional[float] = None,
                  a4: Optional[float] = None):
+        
+        epsilon_y = fy / E0
+        b= (fu - fy) / (E0 * (epsilon_u - epsilon_y))
         
         # Collect all parameters in the exact positional order
         # required by OpenSees

@@ -6,6 +6,7 @@ from .results import MaterialTestResult
 
 from .steel01 import Steel01
 from .steel02 import Steel02
+from .steel02_ape import Steel02_ape
 from .ASDSteel1D import ASDSteel1D
 from .hysteretic import Hysteretic
 
@@ -19,6 +20,7 @@ __all__ = [
     "MaterialTestResult",
     "Steel01",
     "Steel02",
+    "Steel02_ape",
     "ASDSteel1D",
     "Hysteretic",
     "Concrete01",

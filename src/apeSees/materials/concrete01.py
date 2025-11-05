@@ -41,18 +41,15 @@ class Concrete01(Material):
             print(f"Warning: epsc0 ({epsc0}) should be negative. Converting.")
             epsc0 = -epsc0
         if fpcu > 0:
-             print(f"Warning: fpcu ({fpcu}) is positive. 
-                   It's usually zero or negative. Converting.")
+             print(f"Warning: fpcu ({fpcu}) is positive. It's usually zero or negative. Converting.")
              fpcu = -fpcu
         if epsu > 0:
             print(f"Warning: epsu ({epsu}) should be negative. Converting.")
             epsu = -epsu
         if fpcu > fpc:
-            print(f"Warning: Crushing strength fpcu ({fpcu}) is greater 
-                  than max strength fpc ({fpc}).")
+            print(f"Warning: Crushing strength fpcu ({fpcu}) is greater than max strength fpc ({fpc}).")
         if epsu < epsc0:
-            print(f"Warning: Crushing strain epsu ({epsu}) is less than 
-                  strain at max strength epsc0 ({epsc0}).")
+            print(f"Warning: Crushing strain epsu ({epsu}) is less than strain at max strength epsc0 ({epsc0}).")
 
 
         # Collect all parameters in the exact positional order

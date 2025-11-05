@@ -179,7 +179,7 @@ class Material:
         
         ax.legend()
         
-        return ax, results
+        return ax, result
 
     def backbone_tester(
         self,

@@ -48,6 +48,13 @@ class MomentCurvatureResults:
     curvatures: np.ndarray
     moments: np.ndarray
     fiber_history: np.ndarray
+    
+    # section data
+    section_deformation: Optional[np.ndarray] = None      # (n_steps, 4): [eps0, kappa_z, kappa_y, theta]
+    section_force: Optional[np.ndarray] = None    # (n_steps, 4): [P, Mz, My, T]
+    section_tangent: Optional[np.ndarray] = None  # (n_steps, 4, 4)
+    
+    # metadata
     theta: float = 0.0
     max_curvature: Optional[float] = None
     converged: bool = True
@@ -65,6 +72,29 @@ class MomentCurvatureResults:
                 f"fiber_history must have shape (n_steps, n_fibers, 6), "
                 f"got {self.fiber_history.shape}"
             )
+        
+        n_steps = len(self.curvatures)
+        
+        if self.section_deformation is not None:
+            if self.section_deformation.shape != (n_steps, 4):
+                raise ValueError(
+                    f"section_deformation must have shape ({n_steps}, 4), "
+                    f"got {self.section_deformation.shape}"
+                )
+
+        if self.section_force is not None:
+            if self.section_force.shape != (n_steps, 4):
+                raise ValueError(
+                    f"section_force must have shape ({n_steps}, 4), "
+                    f"got {self.section_force.shape}"
+                )
+
+        if self.section_tangent is not None:
+            if self.section_tangent.shape != (n_steps, 4, 4):
+                raise ValueError(
+                    f"section_tangent must have shape ({n_steps}, 4, 4), "
+                    f"got {self.section_tangent.shape}"
+                )
     
     @property
     def peak_moment(self) -> float:
@@ -146,14 +176,16 @@ class MomentCurvatureResults:
         
         return self.fiber_history[step]
     
+    def axial_biaxial_stiffness(self, step: int) -> np.ndarray:
+        """Return the 3×3 axial–bending stiffness (exclude torsion)."""
+        if self.section_tangent is None:
+            raise ValueError("section_tangent not stored")
+        return self.section_tangent[step][np.ix_([0, 1, 2], [0, 1, 2])]
+    
     def save(self, filepath: str) -> None:
         """
         Save results to a NumPy .npz file.
-        
-        Parameters
-        ----------
-        filepath : str
-            Path to save file (e.g., 'mc_results.npz').
+        Optional arrays are saved as empty arrays if missing.
         """
         np.savez(
             filepath,
@@ -161,36 +193,65 @@ class MomentCurvatureResults:
             curvatures=self.curvatures,
             moments=self.moments,
             fiber_history=self.fiber_history,
+            section_deformation=(
+                self.section_deformation
+                if self.section_deformation is not None
+                else np.array([])
+            ),
+            section_force=(
+                self.section_force
+                if self.section_force is not None
+                else np.array([])
+            ),
+            section_tangent=(
+                self.section_tangent
+                if self.section_tangent is not None
+                else np.array([])
+            ),
             theta=self.theta,
             max_curvature=self.max_curvature or 0.0,
             converged=self.converged,
         )
     
     @classmethod
-    def load(cls, filepath: str) -> MomentCurvatureResults:
+    def load(cls, filepath: str) -> "MomentCurvatureResults":
+        
         """
         Load results from a NumPy .npz file.
-        
-        Parameters
-        ----------
-        filepath : str
-            Path to .npz file.
-        
         Returns
         -------
         MomentCurvatureResults
-            Loaded analysis result.
+            The loaded results object.
         """
-        data = np.load(filepath, allow_pickle=True)
         
+        data = np.load(filepath, allow_pickle=True)
+
+        section_deformation = data["section_deformation"]
+        if section_deformation.size == 0:
+            section_deformation = None
+
+        section_force = data["section_force"]
+        if section_force.size == 0:
+            section_force = None
+
+        section_tangent = data["section_tangent"]
+        if section_tangent.size == 0:
+            section_tangent = None
+
+        max_curv = float(data["max_curvature"])
+        max_curv = max_curv if max_curv != 0.0 else None
+
         return cls(
-            axial_load=float(data['axial_load']),
-            curvatures=data['curvatures'],
-            moments=data['moments'],
-            fiber_history=data['fiber_history'],
-            theta=float(data['theta']),
-            max_curvature=float(data['max_curvature']) if data['max_curvature'] != 0.0 else None,
-            converged=bool(data['converged']),
+            axial_load=float(data["axial_load"]),
+            curvatures=data["curvatures"],
+            moments=data["moments"],
+            fiber_history=data["fiber_history"],
+            section_deformation=section_deformation,
+            section_force=section_force,
+            section_tangent=section_tangent,
+            theta=float(data["theta"]),
+            max_curvature=max_curv,
+            converged=bool(data["converged"]),
         )
     
     def __repr__(self) -> str:
