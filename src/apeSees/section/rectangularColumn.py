@@ -13,11 +13,13 @@ from .base import Section
 from .functions import nAs, safe_ndiv, torsional_constant_rectangle
 from .moment_curvature import MomentCurvature
 from .neural_moment_curvature_trainer import NeuralMomentCurvatureTrainer
+from .fiber_mapper import FiberMapper
 
 if TYPE_CHECKING:
     from ..materials import Material
     from .moment_curvature import MomentCurvature
     from .neural_moment_curvature_trainer import NeuralMomentCurvatureTrainer
+    from .fiber_mapper import FiberMapper
     # This circular import is fine due to TYPE_CHECKING
     from .rectangular_column_section import RectangularColumnSection 
 
@@ -168,6 +170,7 @@ class RectangularColumnSection(Section):
         # Composite class
         self.moment_curvature: MomentCurvature = MomentCurvature(section=self)
         self.neural_moment_curvature_trainer: NeuralMomentCurvatureTrainer = NeuralMomentCurvatureTrainer(section=self)
+        self.fiber_map: FiberMapper = FiberMapper(section=self)
     
     def _rebar_layout(self) -> np.ndarray:
         """

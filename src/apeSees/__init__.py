@@ -1,7 +1,9 @@
+from re import A
 from .materials import Material, UniaxialMaterialTester, MaterialTestResult
 from .section import RectangularColumnSection, MomentCurvature
 from .timeseries import LinearTimeSeries, ConstantTimeSeries, PathTimeSeries, ASCE41Protocol, ModifiedATC24Protocol, FEMA461Protocol
-
+from .utilities import AttrDict
+from .section import FiberMapper
 
 __all__ = [
     # Materials
@@ -19,4 +21,6 @@ __all__ = [
     "ASCE41Protocol",
     "ModifiedATC24Protocol",
     "FEMA461Protocol",
+    "AttrDict",
+    "FiberMapper",
 ]
