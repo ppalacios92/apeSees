@@ -80,7 +80,7 @@ class SectionProperties:
             rho_l=rho_l
         )
 
-class RectangularColumnSection(Section):
+class RectangularSolidSection(Section):
     """
     Rectangular reinforced concrete column section with fiber discretization.
     
@@ -137,30 +137,16 @@ class RectangularColumnSection(Section):
         self,
         B: float,
         H: float,
-        cover: float,
-        material_core: Material,
-        material_cover: Material,
-        steel_material: Material,
+        material: Material,
         section_tag: int,
-        number_of_rebars_along_B: int,
-        number_of_rebars_along_H: int,
-        phi: float,
         G: float,
-        rebar_distance_from_edge: Optional[float] = None,
         mesh_size: float = 50.0
     ):
         self.B: float = float(B)
         self.H: float = float(H)
-        self.cover: float = float(cover)
-        self.material_core: Material = material_core
-        self.material_cover: Material = material_cover
-        self.steel_material: Material = steel_material
+        self.steel_material: Material = material
         self.section_tag: int = int(section_tag)
-        self.number_of_rebars_along_B: int = int(number_of_rebars_along_B)
-        self.number_of_rebars_along_H: int = int(number_of_rebars_along_H)
-        self.phi: float = float(phi)
         self.G: float = float(G)
-        self.rebar_distance_from_edge: Optional[float] = rebar_distance_from_edge
         self.mesh_size: float = float(mesh_size)
         
         # Calculate section parameters
