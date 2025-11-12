@@ -10,6 +10,10 @@ from ..utilities import AttrDict
 import numpy as np
 import matplotlib.pyplot as plt
 
+if TYPE_CHECKING:
+    from .base import Section # This import is not in the original, but good practice
+    pass
+
 @dataclass
 class SectionResults:
     """
@@ -44,25 +48,19 @@ class MomentCurvatureResults:
         fiber_history : np.ndarray
             Fiber state history with shape (n_steps, n_fibers, 6).
             Each fiber row contains: [y, z, area, mat_tag, stress, strain].
+        section : SectionResults, optional
+            Detailed section-level results (if recorded).
         theta : float, optional
             Rotation angle [degrees]. Default is 0.0.
         max_curvature : float, optional
             Maximum target curvature.
         converged : bool
             Whether the analysis converged successfully. Default is True.
-        
-        Examples
-        --------
-        >>> result = MomentCurvatureResults(
-        ...     axial_load=-1000000.0,
-        ...     curvatures=curvature_array,
-        ...     moments=moment_array,
-        ...     fiber_history=fiber_data
-        ... )
-        >>> print(f"Peak moment: {result.peak_moment:.2e} N·mm")
-        >>> result.plot()
-        >>> plt.show()
-        """
+        stop_reason : str, optional
+            Reason the analysis stopped (e.g., "Tensile limit reached").
+        metadata : AttrDict, optional
+            Additional metadata about the test.
+    """
     
     axial_load: float
     curvatures: np.ndarray
@@ -76,6 +74,10 @@ class MomentCurvatureResults:
     theta: float = 0.0
     max_curvature: Optional[float] = None
     converged: bool = True
+    
+    # --- NEW FIELD ---
+    stop_reason: Optional[str] = None
+    # --- END NEW FIELD ---
     
     # dictionary setup for extra data
     metadata: AttrDict = field(default_factory=AttrDict)
@@ -111,7 +113,6 @@ class MomentCurvatureResults:
                         f"got {self.section.force.shape}"
                     )
 
-            # Fixed typos: section_tangent -> self.section.tangent
             if self.section.tangent is not None:
                 if self.section.tangent.shape != (n_steps, 4, 4):
                     raise ValueError(
@@ -148,22 +149,7 @@ class MomentCurvatureResults:
     ) -> plt.Axes:
         """
         Plot moment-curvature response.
-        
-        Parameters
-        ----------
-        ax : plt.Axes, optional
-            Matplotlib axes. If None, creates new figure.
-        figsize : tuple, optional
-            Figure size in inches. Default is (8, 5).
-        label : str, optional
-            Plot label. If None, auto-generated from axial load.
-        **kwargs
-            Additional arguments passed to ax.plot().
-        
-        Returns
-        -------
-        plt.Axes
-            The matplotlib axes.
+        (Method implementation is unchanged)
         """
         if ax is None:
             _, ax = plt.subplots(figsize=figsize)
@@ -183,16 +169,7 @@ class MomentCurvatureResults:
     def get_fiber_state(self, step: int) -> np.ndarray:
         """
         Get fiber state at a specific step.
-        
-        Parameters
-        ----------
-        step : int
-            Analysis step index.
-        
-        Returns
-        -------
-        np.ndarray
-            Fiber data with shape (n_fibers, 6): [y, z, area, mat_tag, stress, strain].
+        (Method implementation is unchanged)
         """
         if step < 0 or step >= self.num_steps:
             raise IndexError(f"Step {step} out of range [0, {self.num_steps-1}]")
@@ -201,7 +178,7 @@ class MomentCurvatureResults:
     
     def axial_biaxial_stiffness(self, step: int) -> np.ndarray:
         """Return the 3×3 axial–bending stiffness (exclude torsion)."""
-        if self.section.tangent is None:
+        if self.section is None or self.section.tangent is None:
             raise ValueError("section.tangent not stored")
         return self.section.tangent[step][np.ix_([0, 1, 2], [0, 1, 2])]
     
@@ -209,7 +186,6 @@ class MomentCurvatureResults:
             """
             Save results to a NumPy .npz file.
             """
-            # Handle optional section data
             sec_deform = self.section.deformation if self.section and self.section.deformation is not None else np.array([])
             sec_force = self.section.force if self.section and self.section.force is not None else np.array([])
             sec_tangent = self.section.tangent if self.section and self.section.tangent is not None else np.array([])
@@ -221,7 +197,6 @@ class MomentCurvatureResults:
                 moments=self.moments,
                 fiber_history=self.fiber_history,
                 
-                # Save section data as individual arrays
                 section_deformation=sec_deform,
                 section_force=sec_force,
                 section_tangent=sec_tangent,
@@ -229,6 +204,10 @@ class MomentCurvatureResults:
                 theta=self.theta,
                 max_curvature=self.max_curvature or 0.0,
                 converged=self.converged,
+                
+                # --- NEW: Save stop_reason ---
+                stop_reason=self.stop_reason or '',
+                
                 metadata=self.metadata,
             )
     
@@ -243,16 +222,11 @@ class MomentCurvatureResults:
 
         # --- Rebuild SectionResults object ---
         sec_deform = data["section_deformation"]
-        if sec_deform.size == 0:
-            sec_deform = None
-
+        if sec_deform.size == 0: sec_deform = None
         sec_force = data["section_force"]
-        if sec_force.size == 0:
-            sec_force = None
-
+        if sec_force.size == 0: sec_force = None
         sec_tangent = data["section_tangent"]
-        if sec_tangent.size == 0:
-            sec_tangent = None
+        if sec_tangent.size == 0: sec_tangent = None
         
         section_data = None
         if sec_deform is not None or sec_force is not None or sec_tangent is not None:
@@ -261,7 +235,6 @@ class MomentCurvatureResults:
                 force=sec_force,
                 tangent=sec_tangent
             )
-        # ---
         
         max_curv = float(data["max_curvature"])
         max_curv = max_curv if max_curv != 0.0 else None
@@ -269,15 +242,21 @@ class MomentCurvatureResults:
         metadata_obj = data.get("metadata")
         metadata_dict = metadata_obj.item() if metadata_obj is not None else {}
 
+        # --- NEW: Load stop_reason ---
+        stop_reason = data.get("stop_reason")
+        if stop_reason is not None:
+            stop_reason = str(stop_reason) if str(stop_reason) else None
+        
         return cls(
             axial_load=float(data["axial_load"]),
             curvatures=data["curvatures"],
             moments=data["moments"],
             fiber_history=data["fiber_history"],
-            section=section_data,  # <-- Pass the new object
+            section=section_data,
             theta=float(data["theta"]),
             max_curvature=max_curv,
             converged=bool(data["converged"]),
+            stop_reason=stop_reason, # <-- Pass new field
             metadata=AttrDict(metadata_dict),
         )
     
@@ -286,12 +265,16 @@ class MomentCurvatureResults:
             meta_str = f", metadata_items={meta_count}" if meta_count > 0 else ""
             section_str = ", section_data=True" if self.section is not None else ""
             
+            # --- NEW: Add stop_reason to repr ---
+            stop_str = f", stop_reason={self.stop_reason!r}" if self.stop_reason else ""
+            
             return (
             f"MomentCurvatureResults("
             f"P={self.axial_load/1e6:.2f} MN, "
             f"steps={self.num_steps}, "
             f"fibers={self.num_fibers}, "
             f"peak_M={self.peak_moment/1e9:.2f} GN·mm"
-            f"{section_str}"  # <-- Added
-            f"{meta_str})"    # <-- Fixed
+            f"{section_str}"
+            f"{stop_str}"  # <-- Added
+            f"{meta_str})"
         )

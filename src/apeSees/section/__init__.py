@@ -1,27 +1,44 @@
 """Structural section definitions for apeSees."""
 
 from .base import Section
+from .general_fiber_section import (
+    GeneralFiberSection, 
+    PatchDefinition, 
+    FiberDefinition
+)
 from .rectangularColumn import RectangularColumnSection
+from .rectangularSolidSection import RectangularSolidSection
 from .functions import nAs, bar_area, safe_ndiv, torsional_constant_rectangle
 from .moment_curvature import MomentCurvature
 from .neural_moment_curvature_trainer import NeuralMomentCurvatureTrainer
-from .results import MomentCurvatureResults
+from .results import SectionResults, MomentCurvatureResults
 from .fiber_mapper import FiberMapper
 
 __all__ = [
     # Base classes
     "Section",
+    
+    # General section building blocks
+    "GeneralFiberSection",
+    "PatchDefinition",
+    "FiberDefinition",
+    
     # Section types
     "RectangularColumnSection",
+    "RectangularSolidSection",
+    
     # Analysis
     "MomentCurvature",
     "NeuralMomentCurvatureTrainer",
+    "SectionResults",
     "MomentCurvatureResults",
+    
     # Utility functions
     "nAs",
     "bar_area",
     "safe_ndiv",
     "torsional_constant_rectangle",
+    
     # Fiber mapper
     "FiberMapper",
 ]

@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Set
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
+    from ..materials import Material  # <-- Import Material
 
 
 class Section(ABC):
@@ -15,12 +16,18 @@ class Section(ABC):
     All section types must implement:
     - build(): Define the section in OpenSees
     - plot_section(): Visualize the section geometry
+    - get_materials(): Return all constituent materials
     """
     
     @abstractmethod
-    def build(self) -> int:
+    def build(self, verbose: bool = False) -> int:
         """
         Build the section in OpenSees.
+        
+        Parameters
+        ----------
+        verbose : bool, optional
+            If True, prints section information. Default is False.
         
         Returns
         -------
@@ -45,5 +52,18 @@ class Section(ABC):
         -------
         plt.Axes
             The matplotlib axes.
+        """
+        pass
+
+    # --- NEW ABSTRACT METHOD ---
+    @abstractmethod
+    def get_materials(self) -> Set[Material]:
+        """
+        Return a set of all unique Material objects used in the section.
+        
+        Returns
+        -------
+        Set[Material]
+            A set of the apeSees Material objects.
         """
         pass

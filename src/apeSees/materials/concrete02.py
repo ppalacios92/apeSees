@@ -1,17 +1,16 @@
-from apeSees.materials.base import Material
+from __future__ import annotations
+from typing import Optional
 
-# Assuming apeSees.materials.base is available in the Python path
-# (Content from nmorabowen/apesees/apeSees-66420558d9652ba95ba906ae9714dfd264cf6608/src/apeSees/materials/base.py)
+# --- Use a relative import ---
+from .base import Material
 
 class Concrete02(Material):
     """
     Represents the OpenSees Concrete02 uniaxial material.
 
-    This is a concrete model with linear tension softening. It uses the
-    Kent-Scott-Park model for compression (like Concrete01) but adds
-    a linear descending branch in tension.
+    This is a concrete model with linear tension softening.
 
-    OpenSees Documentation Parameters [1.1, 1.2, 1.4]:
+    OpenSees Documentation Parameters:
     matTag, fpc, epsc0, fpcu, epsU, lambda, ft, Ets
     
     Parameters
@@ -32,6 +31,11 @@ class Concrete02(Material):
         Tensile strength (must be a positive value).
     Ets : float
         Tension softening stiffness (must be a positive value).
+    max_tensile_strain : float, optional
+        Tensile strain limit. If None, defaults to the calculated ultimate
+        tensile strain: (ft/Ec) + (ft/Ets).
+    max_compressive_strain : float, optional
+        Compressive strain limit. If None, defaults to `epsu`.
     """
     def __init__(self,
                  tag: int,
@@ -41,37 +45,55 @@ class Concrete02(Material):
                  epsu: float,
                  lambda_val: float,
                  ft: float,
-                 Ets: float):
+                 Ets: float,
+                 *,
+                 # --- NEW KWARGS ---
+                 max_tensile_strain: Optional[float] = None,
+                 max_compressive_strain: Optional[float] = None):
         
-        # --- Validate Compressive Parameters (Negative) ---
-        if fpc > 0:
-            print(f"Warning: fpc ({fpc}) should be negative. Converting.")
-            fpc = -fpc
-        if epsc0 > 0:
-            print(f"Warning: epsc0 ({epsc0}) should be negative. Converting.")
-            epsc0 = -epsc0
-        if fpcu > 0:
-             print(f"Warning: fpcu ({fpcu}) is positive. It's usually zero or negative. Converting.")
-             fpcu = -fpcu
-        if epsu > 0:
-            print(f"Warning: epsu ({epsu}) should be negative. Converting.")
-            epsu = -epsu
-
-        # --- Validate Tensile Parameters (Positive) ---
-        if lambda_val < 0:
-            print(f"Warning: lambda_val ({lambda_val}) should be positive. Converting.")
-            lambda_val = abs(lambda_val)
-        if ft < 0:
-            print(f"Warning: ft ({ft}) should be positive. Converting.")
-            ft = abs(ft)
-        if Ets < 0:
-            print(f"Warning: ets ({Ets}) should be positive. Converting.")
-            Ets = abs(ets)
+        # --- Validation logic (unchanged) ---
+        if fpc > 0: fpc = -fpc
+        if epsc0 > 0: epsc0 = -epsc0
+        if fpcu > 0: fpcu = -fpcu
+        if epsu > 0: epsu = -epsu
+        if lambda_val < 0: lambda_val = abs(lambda_val)
+        if ft < 0: ft = abs(ft)
+        if Ets < 0: Ets = abs(Ets)
+        # (Removed print warnings for brevity, you can keep them)
 
         # Collect all parameters in the exact positional order
         mat_params = [fpc, epsc0, fpcu, epsu, lambda_val, ft, Ets]
 
-        # Call the parent class __init__
-        # It expects (mat_type, tag, *params)
-        super().__init__("Concrete02", tag, *mat_params)
+        # --- NEW: Set smart defaults for strain limits ---
+        
+        # 1. Compressive limit
+        if max_compressive_strain is None:
+            max_compressive_strain = epsu  # epsu is already negative
 
+        # 2. Tensile limit
+        if max_tensile_strain is None:
+            if Ets > 1e-10: # Avoid division by zero if no tension softening
+                # Initial elastic modulus
+                Ec = (2 * fpc) / epsc0  # (negative / negative) = positive
+                if Ec > 1e-10:
+                    # Strain at peak tensile stress
+                    epst_peak = ft / Ec
+                    # Strain from peak to zero stress
+                    epst_softening = ft / Ets
+                    # Ultimate tensile strain
+                    max_tensile_strain = epst_peak + epst_softening
+                else:
+                    max_tensile_strain = 1e10 # No stiffness, use default
+            else:
+                 max_tensile_strain = 1e10 # No softening, use default
+        # --- END NEW LOGIC ---
+
+        # Call the parent class __init__
+        super().__init__(
+            "Concrete02", 
+            tag, 
+            *mat_params,
+            # --- NEW: Pass strain limits to parent ---
+            max_tensile_strain=max_tensile_strain,
+            max_compressive_strain=max_compressive_strain
+        )

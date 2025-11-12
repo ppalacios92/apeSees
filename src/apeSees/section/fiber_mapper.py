@@ -73,13 +73,12 @@ class FiberMapper:
         ops.node(2, 0.0, 0.0, 0.0)
         ops.fix(1, *[1, 1, 1, 1, 1, 1])
 
-        # Build materials (needed by section)
-        self.section.material_core.build()
-        self.section.material_cover.build()
-        self.section.steel_material.build()
-
-        # Build section
+        # --- MODIFICATION ---
+        # REMOVED the hard-coded material.build() calls.
+        # The section's .build() method (from GeneralFiberSection)
+        # is now responsible for building its own materials.
         section_tag = self.section.build()
+        # --- END MODIFICATION ---
         
         # Build element
         element_tag = 1
@@ -232,7 +231,7 @@ class FiberMapper:
             y, z = self.y, self.z
             areas, tags = self.areas, self.mat_tags
 
-            # --- Marker Size Logic (Unchanged) ---
+            # --- Marker Size Logic ---
             if scale_by_area and self.n_fibers > 1:
                 min_area = np.min(areas)
                 max_area = np.max(areas)
@@ -247,13 +246,11 @@ class FiberMapper:
                 s = (min_size + max_size) / 2
             else:
                 s = kwargs.pop('s', 30)
-                # If not scaling, 's' is a single value, so expand it to an array
                 if isinstance(s, (int, float)):
                     s = np.full_like(areas, s)
             
-            # --- NEW: Plot by group for legend ---
+            # --- Plot by group for legend ---
             unique_tags = np.unique(tags)
-            # Get a standard colormap to pick from
             cmap = plt.get_cmap("tab10") 
             colors = {tag: cmap(i) for i, tag in enumerate(unique_tags)}
 
@@ -268,9 +265,8 @@ class FiberMapper:
                 )
             
             ax.legend(title="Materials", loc='best')
-            # --- End new plot logic ---
 
-            # --- NEW: Show fiber tags ---
+            # --- Show fiber tags ---
             if show_fiber_tags:
                 for i in range(self.n_fibers):
                     ax.text(
@@ -278,10 +274,9 @@ class FiberMapper:
                         fontsize=fiber_tag_fontsize, 
                         ha='center', 
                         va='center', 
-                        zorder=5, # Ensure text is on top
-                        color='k' # Use black for readability
+                        zorder=5,
+                        color='k'
                     )
-            # --- End show tags logic ---
             
             # Add section outline
             if show_outline and hasattr(self.section, 'B') and hasattr(self.section, 'H'):

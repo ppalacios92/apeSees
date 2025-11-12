@@ -1,7 +1,8 @@
-from apeSees.materials.base import Material
+from __future__ import annotations
+from typing import Optional
 
-# Assuming apeSees.materials.base is available in the Python path
-# (Content from nmorabowen/apesees/apeSees-66420558d9652ba95ba906ae9714dfd264cf6608/src/apeSees/materials/base.py)
+# --- Use a relative import ---
+from .base import Material
 
 class Concrete01(Material):
     """
@@ -10,7 +11,7 @@ class Concrete01(Material):
     This is the Kent-Scott-Park concrete model with degraded linear
     unloading/reloading stiffness and no tensile strength.
 
-    OpenSees Documentation Parameters [1.1, 1.3, 1.5]:
+    OpenSees Documentation Parameters:
     matTag, fpc, epsc0, fpcu, epsU
     
     Parameters
@@ -25,15 +26,23 @@ class Concrete01(Material):
         Concrete crushing strength (must be a negative value).
     epsu : float
         Concrete strain at crushing strength (must be a negative value).
+    max_tensile_strain : float, optional
+        Tensile strain limit. Default is 1e10 (no limit).
+    max_compressive_strain : float, optional
+        Compressive strain limit. If None, defaults to `epsu`.
     """
     def __init__(self,
                  tag: int,
                  fpc: float,
                  epsc0: float,
                  fpcu: float,
-                 epsu: float):
+                 epsu: float,
+                 *,
+                 # --- NEW KWARGS ---
+                 max_tensile_strain: Optional[float] = None,
+                 max_compressive_strain: Optional[float] = None):
         
-        # Check that compressive values are negative, as required
+        # --- Validation logic (unchanged) ---
         if fpc > 0:
             print(f"Warning: fpc ({fpc}) should be negative. Converting.")
             fpc = -fpc
@@ -51,11 +60,22 @@ class Concrete01(Material):
         if epsu < epsc0:
             print(f"Warning: Crushing strain epsu ({epsu}) is less than strain at max strength epsc0 ({epsc0}).")
 
-
         # Collect all parameters in the exact positional order
         mat_params = [fpc, epsc0, fpcu, epsu]
 
-        # Call the parent class __init__
-        # It expects (mat_type, tag, *params)
-        super().__init__("Concrete01", tag, *mat_params)
+        # --- NEW: Set smart default for compressive strain ---
+        # If the user doesn't specify a limit, use the material's
+        # ultimate strain (epsu) as the failure limit.
+        if max_compressive_strain is None:
+            max_compressive_strain = epsu  # epsu is already negative
+        # --- END NEW LOGIC ---
 
+        # Call the parent class __init__
+        super().__init__(
+            "Concrete01", 
+            tag, 
+            *mat_params,
+            # --- NEW: Pass strain limits to parent ---
+            max_tensile_strain=max_tensile_strain,
+            max_compressive_strain=max_compressive_strain
+        )
