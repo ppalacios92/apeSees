@@ -7,12 +7,48 @@ from .base import Material
 class Hysteretic(Material):
     """
     Represents the OpenSees Hysteretic uniaxial material.
-    ... (docstring unchanged) ...
+    
+    This material model is defined by a multi-linear backbone and
+    parameters controlling pinching, damage, and softening.
     
     Parameters
     ----------
-    ... (standard parameters unchanged) ...
-    
+    tag : int
+        Unique material tag.
+    s1p : float
+        Stress at first positive backbone point.
+    e1p : float
+        Strain at first positive backbone point.
+    s2p : float
+        Stress at second positive backbone point.
+    e2p : float
+        Strain at second positive backbone point.
+    s1n : float
+        Stress at first negative backbone point (must be negative).
+    e1n : float
+        Strain at first negative backbone point (must be negative).
+    s2n : float
+        Stress at second negative backbone point (must be negative).
+    e2n : float
+        Strain at second negative backbone point (must be negative).
+    pinch_x : float
+        Pinching factor for strain (or deformation) during reloading.
+    pinch_y : float
+        Pinching factor for stress (or force) during reloading.
+    damage1 : float
+        Damage parameter for stiffness degradation.
+    damage2 : float
+        Damage parameter for strength degradation.
+    s3p : float, optional
+        Stress at third positive backbone point.
+    e3p : float, optional
+        Strain at third positive backbone point.
+    s3n : float, optional
+        Stress at third negative backbone point.
+    e3n : float, optional
+        Strain at third negative backbone point.
+    beta : float, optional
+        Power parameter for softening.
     max_tensile_strain : float, optional
         Tensile strain limit. If None, defaults to `e3p` if provided,
         otherwise `e2p`.
@@ -36,11 +72,34 @@ class Hysteretic(Material):
                  e3n: Optional[float] = None,
                  beta: Optional[float] = None,
                  *,
-                 # --- NEW KWARGS ---
+                 # --- KWARGS ---
                  max_tensile_strain: Optional[float] = None,
                  max_compressive_strain: Optional[float] = None):
         
-        # --- Parameter list logic (unchanged) ---
+        # --- Store all init parameters as attributes ---
+        self.tag = tag
+        self.s1p = s1p
+        self.e1p = e1p
+        self.s2p = s2p
+        self.e2p = e2p
+        self.s1n = s1n
+        self.e1n = e1n
+        self.s2n = s2n
+        self.e2n = e2n
+        self.s3p = s3p
+        self.e3p = e3p
+        self.s3n = s3n
+        self.e3n = e3n
+        self.pinch_x = pinch_x
+        self.pinch_y = pinch_y
+        self.damage1 = damage1
+        self.damage2 = damage2
+        self.beta = beta
+        # Store the *original* input values, which might be None
+        self.input_max_tensile_strain = max_tensile_strain
+        self.input_max_compressive_strain = max_compressive_strain
+
+        # --- Parameter list logic ---
         mat_params = [s1p, e1p, s2p, e2p]
 
         is_trilinear = False
@@ -63,21 +122,25 @@ class Hysteretic(Material):
         if beta is not None:
             mat_params.append(beta)
             
-        # --- NEW: Set smart defaults for strain limits ---
+        # --- Set smart defaults for strain limits ---
         
+        # Start with the input values
+        resolved_max_compressive_strain = max_compressive_strain
+        resolved_max_tensile_strain = max_tensile_strain
+
         # 1. Compressive limit
-        if max_compressive_strain is None:
+        if resolved_max_compressive_strain is None:
             if is_trilinear and e3n is not None:
-                max_compressive_strain = e3n # Use last point on envelope
+                resolved_max_compressive_strain = e3n # Use last point on envelope
             else:
-                max_compressive_strain = e2n # Use 2nd point on envelope
+                resolved_max_compressive_strain = e2n # Use 2nd point on envelope
 
         # 2. Tensile limit
-        if max_tensile_strain is None:
+        if resolved_max_tensile_strain is None:
             if is_trilinear and e3p is not None:
-                max_tensile_strain = e3p # Use last point on envelope
+                resolved_max_tensile_strain = e3p # Use last point on envelope
             else:
-                max_tensile_strain = e2p # Use 2nd point on envelope
+                resolved_max_tensile_strain = e2p # Use 2nd point on envelope
         # --- END NEW LOGIC ---
 
         # Call the parent class __init__
@@ -85,7 +148,7 @@ class Hysteretic(Material):
             "Hysteretic", 
             tag, 
             *mat_params,
-            # --- NEW: Pass strain limits to parent ---
-            max_tensile_strain=max_tensile_strain,
-            max_compressive_strain=max_compressive_strain
+            # --- Pass *resolved* strain limits to parent ---
+            max_tensile_strain=resolved_max_tensile_strain,
+            max_compressive_strain=resolved_max_compressive_strain
         )

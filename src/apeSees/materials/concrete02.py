@@ -47,7 +47,7 @@ class Concrete02(Material):
                  ft: float,
                  Ets: float,
                  *,
-                 # --- NEW KWARGS ---
+                 # --- KWARGS ---
                  max_tensile_strain: Optional[float] = None,
                  max_compressive_strain: Optional[float] = None):
         
@@ -60,6 +60,7 @@ class Concrete02(Material):
         if ft < 0: ft = abs(ft)
         if Ets < 0: Ets = abs(Ets)
         
+        # --- Store all init parameters as attributes ---
         self.tag = tag
         self.fpc = fpc
         self.epsc0 = epsc0
@@ -68,20 +69,25 @@ class Concrete02(Material):
         self.lambda_val = lambda_val
         self.ft = ft
         self.Ets = Ets
-        self.max_tensile_strain = max_tensile_strain
-        self.max_compressive_strain = max_compressive_strain
+        # Store the *original* input values, which might be None
+        self.input_max_tensile_strain = max_tensile_strain
+        self.input_max_compressive_strain = max_compressive_strain
 
         # Collect all parameters in the exact positional order
         mat_params = [fpc, epsc0, fpcu, epsu, lambda_val, ft, Ets]
 
-        # --- NEW: Set smart defaults for strain limits ---
+        # --- Set smart defaults for strain limits ---
         
+        # Start with the input value
+        resolved_max_compressive_strain = max_compressive_strain
+        resolved_max_tensile_strain = max_tensile_strain
+
         # 1. Compressive limit
-        if max_compressive_strain is None:
-            max_compressive_strain = epsu  # epsu is already negative
+        if resolved_max_compressive_strain is None:
+            resolved_max_compressive_strain = epsu  # epsu is already negative
 
         # 2. Tensile limit
-        if max_tensile_strain is None:
+        if resolved_max_tensile_strain is None:
             if Ets > 1e-10: # Avoid division by zero if no tension softening
                 # Initial elastic modulus
                 Ec = (2 * fpc) / epsc0  # (negative / negative) = positive
@@ -91,11 +97,11 @@ class Concrete02(Material):
                     # Strain from peak to zero stress
                     epst_softening = ft / Ets
                     # Ultimate tensile strain
-                    max_tensile_strain = epst_peak + epst_softening
+                    resolved_max_tensile_strain = epst_peak + epst_softening
                 else:
-                    max_tensile_strain = 1e10 # No stiffness, use default
+                    resolved_max_tensile_strain = 1e10 # No stiffness, use default
             else:
-                 max_tensile_strain = 1e10 # No softening, use default
+                resolved_max_tensile_strain = 1e10 # No softening, use default
         # --- END NEW LOGIC ---
 
         # Call the parent class __init__
@@ -103,7 +109,7 @@ class Concrete02(Material):
             "Concrete02", 
             tag, 
             *mat_params,
-            # --- NEW: Pass strain limits to parent ---
-            max_tensile_strain=max_tensile_strain,
-            max_compressive_strain=max_compressive_strain
+            # --- Pass *resolved* strain limits to parent ---
+            max_tensile_strain=resolved_max_tensile_strain,
+            max_compressive_strain=resolved_max_compressive_strain
         )

@@ -47,7 +47,7 @@ class Material:
         mat_type: str, 
         tag: int, 
         *params: Any,
-        # --- NEW KWARGS ---
+        # --- KWARGS ---
         max_tensile_strain: Optional[float] = None,
         max_compressive_strain: Optional[float] = None
     ):
@@ -61,13 +61,15 @@ class Material:
                 f"Expected positional arguments in OpenSees order."
             )
         
+        # This import is deferred to avoid circular dependencies
+        # if tester.py imports from material.py (which it likely does)
+        from .tester import UniaxialMaterialTester
         self.tester: UniaxialMaterialTester = UniaxialMaterialTester(material_object=self)
         
-        # --- NEW ATTRIBUTES ---
+        # --- ATTRIBUTES ---
         # Set "infinite" limits if none are provided
         self.max_tensile_strain: float = max_tensile_strain if max_tensile_strain is not None else 1e10
         self.max_compressive_strain: float = max_compressive_strain if max_compressive_strain is not None else -1e10
-        # --- END NEW ATTRIBUTES ---
 
     def build(self, verbose: bool = False) -> int:
         """
@@ -109,6 +111,7 @@ class Material:
         
         (Method implementation is unchanged)
         """
+        # This import is deferred to avoid circular dependencies
         from ..timeseries import ASCE41Protocol, ModifiedATC24Protocol, FEMA461Protocol
         
         if ax is None:

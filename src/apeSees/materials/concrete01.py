@@ -38,11 +38,11 @@ class Concrete01(Material):
                  fpcu: float,
                  epsu: float,
                  *,
-                 # --- NEW KWARGS ---
+                 # --- KWARGS ---
                  max_tensile_strain: Optional[float] = None,
                  max_compressive_strain: Optional[float] = None):
         
-        # --- Validation logic (unchanged) ---
+        # --- Validation logic ---
         if fpc > 0:
             print(f"Warning: fpc ({fpc}) should be negative. Converting.")
             fpc = -fpc
@@ -60,22 +60,39 @@ class Concrete01(Material):
         if epsu < epsc0:
             print(f"Warning: Crushing strain epsu ({epsu}) is less than strain at max strength epsc0 ({epsc0}).")
 
+        # --- Store all init parameters as attributes ---
+        self.tag = tag
+        self.fpc = fpc
+        self.epsc0 = epsc0
+        self.fpcu = fpcu
+        self.epsu = epsu
+        # Store the *original* input values, which might be None
+        self.input_max_tensile_strain = max_tensile_strain
+        self.input_max_compressive_strain = max_compressive_strain
+
         # Collect all parameters in the exact positional order
         mat_params = [fpc, epsc0, fpcu, epsu]
 
-        # --- NEW: Set smart default for compressive strain ---
+        # --- Set smart default for compressive strain ---
+        
+        # Start with the input value
+        resolved_max_compressive_strain = max_compressive_strain
+
         # If the user doesn't specify a limit, use the material's
         # ultimate strain (epsu) as the failure limit.
-        if max_compressive_strain is None:
-            max_compressive_strain = epsu  # epsu is already negative
-        # --- END NEW LOGIC ---
+        if resolved_max_compressive_strain is None:
+            resolved_max_compressive_strain = epsu  # epsu is already negative
+        
+        # Note: Concrete01 has no tension side, so we just pass the
+        # user-provided max_tensile_strain (which is likely None)
+        # to the parent, which will apply its own default (1e10).
 
         # Call the parent class __init__
         super().__init__(
             "Concrete01", 
             tag, 
             *mat_params,
-            # --- NEW: Pass strain limits to parent ---
+            # --- Pass strain limits to parent ---
             max_tensile_strain=max_tensile_strain,
-            max_compressive_strain=max_compressive_strain
+            max_compressive_strain=resolved_max_compressive_strain
         )
