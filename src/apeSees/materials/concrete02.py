@@ -59,7 +59,17 @@ class Concrete02(Material):
         if lambda_val < 0: lambda_val = abs(lambda_val)
         if ft < 0: ft = abs(ft)
         if Ets < 0: Ets = abs(Ets)
-        # (Removed print warnings for brevity, you can keep them)
+        
+        self.tag = tag
+        self.fpc = fpc
+        self.epsc0 = epsc0
+        self.fpcu = fpcu
+        self.epsu = epsu
+        self.lambda_val = lambda_val
+        self.ft = ft
+        self.Ets = Ets
+        self.max_tensile_strain = max_tensile_strain
+        self.max_compressive_strain = max_compressive_strain
 
         # Collect all parameters in the exact positional order
         mat_params = [fpc, epsc0, fpcu, epsu, lambda_val, ft, Ets]
